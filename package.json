@@ -1,41 +1,38 @@
 {
   "name": "@cyanheads/git-mcp-server",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "An MCP (Model Context Protocol) server enabling LLMs and AI agents to interact with Git repositories. Provides tools for comprehensive Git operations including clone, commit, branch, diff, log, status, push, pull, merge, rebase, worktree, tag management, and more, via the MCP standard. STDIO & HTTP.",
+  "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "bin": {
+    "git-mcp-server": "dist/index.js"
+  },
+  "exports": "./dist/index.js",
+  "types": "dist/index.d.ts",
   "type": "module",
-  "license": "Apache-2.0",
-  "author": "Casey Hand @cyanheads",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/cyanheads/git-mcp-server.git"
   },
-  "homepage": "https://github.com/cyanheads/git-mcp-server#readme",
   "bugs": {
     "url": "https://github.com/cyanheads/git-mcp-server/issues"
   },
-  "engines": {
-    "node": ">=18.0.0"
-  },
-  "bin": {
-    "git-mcp-server": "dist/index.js"
-  },
-  "files": [
-    "dist"
-  ],
+  "homepage": "https://github.com/cyanheads/git-mcp-server#readme",
   "scripts": {
     "build": "tsc && node --loader ts-node/esm scripts/make-executable.ts dist/index.js",
     "start": "node dist/index.js",
     "start:stdio": "MCP_LOG_LEVEL=debug MCP_TRANSPORT_TYPE=stdio node dist/index.js",
     "start:http": "MCP_LOG_LEVEL=debug MCP_TRANSPORT_TYPE=http node dist/index.js",
     "rebuild": "ts-node --esm scripts/clean.ts && npm run build",
+    "docs:generate": "typedoc --tsconfig ./tsconfig.typedoc.json",
     "tree": "ts-node --esm scripts/tree.ts",
+    "fetch-spec": "ts-node --esm scripts/fetch-openapi-spec.ts",
+    "format": "prettier --write \"**/*.{ts,js,json,md,html,css}\"",
     "inspector": "npx @modelcontextprotocol/inspector --config mcp.json --server git-mcp-server",
     "inspector:http": "npx @modelcontextprotocol/inspector --config mcp.json --server git-mcp-server-http",
-    "clean": "ts-node --esm scripts/clean.ts",
-    "format": "prettier --write \"**/*.{ts,js,json,md,html,css}\""
-  },
-  "publishConfig": {
-    "access": "public"
+    "clean": "ts-node --esm scripts/clean.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/inspector": "^0.14.1",
@@ -44,14 +41,16 @@
     "@types/node": "^24.0.1",
     "@types/sanitize-html": "^2.16.0",
     "@types/validator": "^13.15.1",
+    "chalk": "^5.4.1",
     "chrono-node": "2.8.0",
+    "cli-table3": "^0.6.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "ignore": "^7.0.5",
+    "jose": "^6.0.11",
     "jsonwebtoken": "^9.0.2",
     "openai": "^5.3.0",
     "partial-json": "^0.1.7",
-    "prettier": "^3.5.3",
     "sanitize-html": "^2.17.0",
     "tiktoken": "^1.0.21",
     "ts-node": "^10.9.2",
@@ -83,7 +82,6 @@
     "diff",
     "fetch",
     "log",
-    "llm-tools",
     "merge",
     "pull",
     "push",
@@ -97,7 +95,29 @@
     "ai-agent",
     "automation"
   ],
+  "author": "cyanheads <casey@caseyjhand.com> (https://github.com/cyanheads/git-mcp-server#readme)",
+  "license": "Apache-2.0",
+  "funding": [
+    {
+      "type": "github",
+      "url": "https://github.com/sponsors/cyanheads"
+    },
+    {
+      "type": "buy_me_a_coffee",
+      "url": "https://www.buymeacoffee.com/cyanheads"
+    }
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "devDependencies": {
-    "@types/express": "^5.0.3"
+    "@types/express": "^5.0.3",
+    "@types/js-yaml": "^4.0.9",
+    "js-yaml": "^4.1.0",
+    "prettier": "^3.5.3",
+    "typedoc": "^0.28.5"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
