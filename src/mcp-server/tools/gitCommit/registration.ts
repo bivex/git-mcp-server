@@ -54,6 +54,7 @@ Write clear, concise commit messages using the Conventional Commits format: \`ty
 - \`type\`: feat, fix, docs, style, refactor, test, chore, etc.
 - \`(scope)\`: Optional context (e.g., \`auth\`, \`ui\`, filename).
 - \`subject\`: Imperative, present tense description (e.g., "add login button", not "added login button").
+- Subject (Commit Title) line should be concise and limited to 72 characters. Emojis can also be used in the subject line for visual cues (e.g., ✨ feat: add new feature).
 
 I want to understand what you did and why. Use the body for detailed explanations, if necessary.
 
