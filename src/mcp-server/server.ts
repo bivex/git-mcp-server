@@ -122,6 +122,10 @@ import {
   initializeGitWrapupInstructionsStateAccessors,
   registerGitWrapupInstructionsTool,
 } from "./tools/gitWrapupInstructions/index.js";
+import {
+  initializeGitRewordStateAccessors,
+  registerGitRewordTool,
+} from "./tools/gitReword/index.js";
 
 // Import transport setup functions AND state accessors
 import {
@@ -359,6 +363,10 @@ async function createMcpServerInstance(): Promise<McpServer> {
       getWorkingDirectory,
       getSessionIdFromContext,
     ); // Added this line
+    initializeGitRewordStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
     logger.debug("State accessors initialized successfully.", context);
   } catch (initError) {
     // Catch errors specifically during initialization phase
@@ -399,6 +407,7 @@ async function createMcpServerInstance(): Promise<McpServer> {
     await registerGitTagTool(server);
     await registerGitWorktreeTool(server);
     await registerGitWrapupInstructionsTool(server);
+    await registerGitRewordTool(server);
     // Add calls to register other resources/tools here if needed in the future.
     logger.info("Git tools registered successfully", context);
   } catch (err) {
