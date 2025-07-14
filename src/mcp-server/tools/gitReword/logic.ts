@@ -36,6 +36,7 @@ export interface GitRewordResult {
   originalMessage?: string;
   newMessage?: string;
   hash?: string;
+  rebaseInstructions?: string;
 }
 
 export async function rewordGitCommit(
@@ -48,76 +49,102 @@ export async function rewordGitCommit(
   const operation = "rewordGitCommit";
   const targetPath = sanitization.sanitizePath(
     input.path || context.getWorkingDirectory() || ".",
+    { allowAbsolute: true }
   );
 
   try {
     // Determine the commit to reword
     const commitRef = input.commitHash || "HEAD";
 
-    // First, get the original commit message if a specific hash is provided
+    // First, get the original commit message
     let originalMessage = "";
-    if (input.commitHash) {
-      try {
-        const { stdout } = await execAsync(
-          `git -C "${targetPath}" log -1 --pretty=format:%B ${commitRef}`,
-        );
-        originalMessage = stdout.trim();
-      } catch (error: any) {
-        logger.warning(
-          `Could not get original message for commit ${commitRef}: ${error.message}`,
-          { ...context, operation },
-        );
-      }
+    try {
+      const { stdout } = await execAsync(
+        `git -C "${targetPath}" log -1 --pretty=format:%B ${commitRef}`,
+      );
+      originalMessage = stdout.trim();
+    } catch (error: any) {
+      logger.warning(
+        `Could not get original message for commit ${commitRef}: ${error.message}`,
+        { ...context, operation },
+      );
     }
 
     // Sanitize the new message to prevent command injection
     const sanitizedNewMessage = input.newMessage.replace(/"/g, '\"');
 
     let command: string;
-    if (input.commitHash) {
-      // For reword, we'll use git filter-repo or a rebase approach if not HEAD
-      // For simplicity, for now, we'll only support HEAD via commit --amend
-      // If a specific hash is provided, it usually implies rebase -i or filter-repo which are more complex.
-      // For this tool, we'll restrict to HEAD for now, or use an interactive rebase for specific commits.
-      // Given the request is for a specific commit, we should actually initiate a rebase.
+    let isRebaseRequired = false;
 
-      // This is a simplified approach. For true arbitrary commit reword,
-      // it would involve git rebase -i and then detecting the editor.
-      // For this specific case (reword only), let's assume it's always HEAD or require user to rebase.
+    if (commitRef === "HEAD") {
+      // For HEAD, use commit --amend
+      command = `git -C "${targetPath}" commit --amend -m "${sanitizedNewMessage}"`;
+    } else {
+      // For arbitrary commits, we need to use rebase
+      isRebaseRequired = true;
+      
+      // First, let's find the parent of the target commit
+      let parentCommit: string;
+      try {
+        const { stdout } = await execAsync(
+          `git -C "${targetPath}" rev-parse ${commitRef}^`,
+        );
+        parentCommit = stdout.trim();
+      } catch (error: any) {
+        throw new McpError(
+          BaseErrorCode.VALIDATION_ERROR,
+          `Could not find parent commit for ${commitRef}. This might be the root commit or an invalid commit hash.`,
+          { context, operation, originalError: error },
+        );
+      }
 
-      // Since the request explicitly gives a hash, and we can't easily do a non-interactive rebase reword
-      // directly for an arbitrary commit without complex scripting, let's revert to advising interactive rebase
-      // OR, for the purpose of this tool, we will only allow reword for HEAD for now.
-      // If the user wants to reword an older commit, they must use interactive rebase directly.
+      // Create a temporary file with the new commit message
+      const tempMessageFile = `${targetPath}/.git-reword-message-${Date.now()}`;
+      
+      try {
+        // Write the new message to a temporary file
+        const fs = await import("fs/promises");
+        await fs.writeFile(tempMessageFile, sanitizedNewMessage);
+        
+        // Set up the rebase to use our custom message
+        const rebaseCommand = `git -C "${targetPath}" rebase -i ${parentCommit} --exec 'git commit --amend -F "${tempMessageFile}"'`;
+        
+        // For now, we'll provide instructions for manual rebase
+        // since automated rebase with message replacement is complex
+        const rebaseInstructions = `To reword commit ${commitRef}, run the following commands:
 
-      // Re-evaluating: The prompt asks to reword a specific past commit and "the last one".
-      // `git commit --amend` only works for the very last commit (HEAD).
-      // To reword an arbitrary commit (like "4377c80..."), one would typically use `git rebase -i <commit-before-target>`.
-      // The simplest way to handle this via a tool, given the constraints,
-      // is to initiate an interactive rebase if `commitHash` is not HEAD.
-      // However, interactive rebase requires user interaction.
+1. Start interactive rebase: git -C "${targetPath}" rebase -i ${parentCommit}
+2. In the editor, change 'pick' to 'reword' for commit ${commitRef}
+3. Save and close the editor
+4. When the rebase stops for the reword, the commit message editor will open
+5. Replace the message with: ${sanitizedNewMessage}
+6. Save and close the editor
+7. The rebase will continue automatically
 
-      // A direct, non-interactive way to reword an arbitrary commit is more involved,
-      // often requiring `git filter-branch` or `git filter-repo`, which are powerful but dangerous.
+Alternatively, you can use this one-liner (but be careful):
+echo '${sanitizedNewMessage}' > /tmp/new_message && git -C "${targetPath}" rebase -i ${parentCommit} --exec 'git commit --amend -F /tmp/new_message'`;
 
-      // Given the context of "reword" being a common interactive rebase action,
-      // and the model's ability to run shell commands, we can't directly intercept
-      // and change the commit message in the rebase interactive mode.
+        // Clean up temp file
+        await fs.unlink(tempMessageFile).catch(() => {});
 
-      // Let's assume for this tool, 'reword' will mean changing the *last* commit (HEAD)
-      // or guiding the user to do an interactive rebase for older commits.
-      // If commitHash is provided and it's not HEAD, we'll throw an error or suggest `git rebase -i`.
-
-      if (commitRef !== "HEAD") {
         return {
           success: false,
-          message: `Rewording a specific past commit (${commitRef}) requires an interactive rebase. Please run 'git rebase -i ${commitRef}^' in your terminal, then change 'pick' to 'reword' for the commit.`,
+          message: `Rewording commit ${commitRef} requires an interactive rebase.`,
+          originalMessage,
+          newMessage: sanitizedNewMessage,
+          hash: commitRef,
+          rebaseInstructions,
         };
+      } catch (error: any) {
+        // Clean up temp file on error
+        try {
+          const fs = await import("fs/promises");
+          await fs.unlink(tempMessageFile).catch(() => {});
+        } catch {}
+        
+        throw error;
       }
     }
-
-    // This command is specifically for the last commit (HEAD)
-    command = `git -C "${targetPath}" commit --amend -m "${sanitizedNewMessage}"`;
 
     logger.debug(`Executing command: ${command}`, { ...context, operation });
 

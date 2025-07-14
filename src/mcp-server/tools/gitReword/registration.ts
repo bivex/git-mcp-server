@@ -35,14 +35,17 @@ export function initializeGitRewordStateAccessors(
 }
 
 const TOOL_NAME = "git_reword";
-const TOOL_DESCRIPTION = `Rewords the message of the most recent commit (HEAD) in the Git repository. Returns the reword result as a JSON object.
+const TOOL_DESCRIPTION = `Rewords the message of a Git commit. Returns the reword result as a JSON object.
 
 **Commit Message Guidance:**
 Write clear, concise commit messages using the Conventional Commits format: \`type(scope): subject\`.\n- \`type\`: feat, fix, docs, style, refactor, test, chore, etc.\n- \`(scope)\`: Optional context (e.g., \`auth\`, \`ui\`, filename).\n- \`subject\`: Imperative, present tense description (e.g., \"add login button\", not \"added login button\").\n- Subject (Commit Title) line should be concise and limited to 72 characters. Emojis can also be used in the subject line for visual cues (e.g., ✨ feat: add new feature).\n
-**Important Note:** This tool only supports rewording the *last* commit (HEAD). To reword an older commit, you must use \`git rebase -i <commit-before-target>\` manually in your terminal.
-
-**Tool Options & Behavior:**
+**Tool Behavior:**
+- If no \`commitHash\` is provided or \`commitHash\` is "HEAD", the tool will reword the most recent commit using \`git commit --amend\`.
+- If a specific \`commitHash\` is provided (not HEAD), the tool will provide detailed instructions for performing an interactive rebase to reword that commit.
 - The \`path\` defaults to the session's working directory unless overridden.
+
+**For Older Commits:**
+When rewording a commit other than HEAD, the tool will return step-by-step instructions for using \`git rebase -i\` along with the exact commands needed to complete the reword operation.
 `;
 
 export const registerGitRewordTool = async (
